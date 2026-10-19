@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vendor List · Renuka Jadhav</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #13245a;
+      --blue: #1d4ed8;
+      --blue-soft: #e8efff;
+      --page: #eef2f9;
+      --text: #1f2937;
+      --muted: #64708a;
+      --line: #e3e8f2;
+      --red: #b91c1c;
+      --red-soft: #fde8e8;
+      --green: #15803d;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", "Segoe UI", system-ui, Arial, sans-serif;
+      background: var(--page);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 32px 16px;
+    }
+    h1, h2 { font-family: "Poppins", "Segoe UI", sans-serif; color: var(--navy); }
+    .wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 20px; }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(19, 36, 90, .10);
+      padding: 24px;
+    }
+
+    /* Header */
+    .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; }
+    h1 { font-size: 28px; }
+    .sub { color: var(--muted); font-size: 14px; }
+    .stats { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill { background: var(--blue-soft); color: var(--blue); font-weight: 600; font-size: 14px; padding: 6px 12px; border-radius: 999px; }
+    .pill.red { background: var(--red-soft); color: var(--red); }
+
+    /* Table */
+    .table-scroll { overflow-x: auto; margin-top: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.overdue td { background: var(--red-soft); color: var(--red); font-weight: 500; }
+    .tag { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 600; background: var(--red); color: #fff; padding: 1px 8px; border-radius: 999px; }
+    .message { padding: 16px 0; color: var(--muted); }
+
+    /* Form */
+    h2 { font-size: 20px; margin-bottom: 16px; }
+    form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+    label { display: grid; gap: 4px; font-size: 13px; font-weight: 500; color: var(--muted); }
+    input { font: inherit; font-size: 15px; color: var(--text); padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; }
+    input:focus { outline: 2px solid var(--blue); border-color: transparent; }
+    .actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    button { font: inherit; font-weight: 600; background: var(--blue); color: #fff; border: 0; border-radius: 8px; padding: 10px 20px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #formMsg { font-size: 14px; font-weight: 500; }
+    #formMsg.ok { color: var(--green); }
+    #formMsg.err { color: var(--red); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+
+    <section class="card">
+      <div class="head">
+        <div>
+          <h1>Vendor List</h1>
+          <p class="sub">Data from Supabase · today: <span id="today"></span></p>
+        </div>
+        <div class="stats">
+          <span class="pill" id="countPill">– vendors</span>
+          <span class="pill red" id="overduePill">– overdue</span>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>City</th>
+              <th>GSTIN</th>
+              <th class="num">Credit limit</th>
+              <th class="num">Balance</th>
+              <th>Due date</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <p class="message" id="tableMsg">Loading vendors…</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Add a vendor</h2>
+      <form id="vendorForm" novalidate>
+        <label>Name <input name="name" autocomplete="off"></label>
+        <label>City <input name="city" autocomplete="off"></label>
+        <label>GSTIN (15 characters) <input name="gstin" maxlength="15" autocomplete="off"></label>
+        <label>Credit limit (₹) <input name="credit_limit" type="number" min="0" step="1"></label>
+        <label>Balance (₹) <input name="balance" type="number" min="0" step="1"></label>
+        <label>Due date <input name="due_date" type="date"></label>
+        <div class="actions">
+          <button type="submit" id="addBtn">Add vendor</button>
+          <span id="formMsg" role="status"></span>
+        </div>
+      </form>
+    </section>
+
+  </main>
+
+  <script>
+    // Supabase connection. This is the PUBLISHABLE (public) key: it is meant to be
+    // visible in a web page and can only do what the table's Row Level Security
+    // rules allow (read vendors, add a vendor). Never put the secret key here.
+    const SUPABASE_URL = "https://mbormqyxqiwmbceufmmn.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_nEgw9AKlQAXCazrC6UtdfQ_yumbBymq";
+    const API = SUPABASE_URL + "/rest/v1/vendors";
+
+    // Today's date as YYYY-MM-DD in local time, the same format Supabase uses for due_date.
+    const now = new Date();
+    const todayISO = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+
+    const rupees = n => Number(n).toLocaleString("en-IN");
+    const niceDate = iso => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const isOverdue = v => v.due_date < todayISO && Number(v.balance) > 0;
+
+    document.getElementById("today").textContent = niceDate(todayISO);
+
+    // Read all vendors and draw the table.
+    async function loadVendors() {
+      const msg = document.getElementById("tableMsg");
+      try {
+        const res = await fetch(API + "?select=*&order=name", { headers: { apikey: SUPABASE_KEY } });
+        if (!res.ok) throw new Error("Supabase replied with status " + res.status);
+        const vendors = await res.json();
+
+        const rows = document.getElementById("rows");
+        rows.innerHTML = "";
+        for (const v of vendors) {
+          const tr = document.createElement("tr");
+          if (isOverdue(v)) tr.className = "overdue";
+          const cells = [v.name, v.city, v.gstin, rupees(v.credit_limit), rupees(v.balance), niceDate(v.due_date)];
+          cells.forEach((text, i) => {
+            const td = document.createElement("td");
+            td.textContent = text;
+            if (i === 3 || i === 4) td.className = "num";
+            tr.appendChild(td);
+          });
+          if (isOverdue(v)) {
+            const tag = document.createElement("span");
+            tag.className = "tag";
+            tag.textContent = "Overdue";
+            tr.lastChild.appendChild(tag);
+          }
+          rows.appendChild(tr);
+        }
+
+        const overdue = vendors.filter(isOverdue).length;
+        document.getElementById("countPill").textContent = vendors.length + " vendors";
+        document.getElementById("overduePill").textContent = overdue + " overdue";
+        msg.textContent = vendors.length ? "" : "No vendors yet.";
+      } catch (err) {
+        msg.textContent = "Could not load vendors. " + err.message;
+      }
+    }
+
+    // Check the form, then add the vendor.
+    const form = document.getElementById("vendorForm");
+    const formMsg = document.getElementById("formMsg");
+
+    function showMsg(text, ok) {
+      formMsg.textContent = text;
+      formMsg.className = ok ? "ok" : "err";
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const f = form.elements;
+      const vendor = {
+        name: f.name.value.trim(),
+        city: f.city.value.trim(),
+        gstin: f.gstin.value.trim().toUpperCase(),
+        credit_limit: f.credit_limit.value,
+        balance: f.balance.value,
+        due_date: f.due_date.value
+      };
+
+      if (!vendor.name) return showMsg("Please enter the vendor name.");
+      if (!vendor.city) return showMsg("Please enter the city.");
+      if (vendor.gstin.length !== 15) return showMsg("GSTIN must be exactly 15 characters.");
+      if (vendor.credit_limit === "" || Number(vendor.credit_limit) < 0) return showMsg("Credit limit must be a number, 0 or more.");
+      if (vendor.balance === "" || Number(vendor.balance) < 0) return showMsg("Balance must be a number, 0 or more.");
+      if (!vendor.due_date) return showMsg("Please choose the due date.");
+      vendor.credit_limit = Number(vendor.credit_limit);
+      vendor.balance = Number(vendor.balance);
+
+      const btn = document.getElementById("addBtn");
+      btn.disabled = true;
+      showMsg("Saving…", true);
+      try {
+        const res = await fetch(API, {
+          method: "POST",
+          headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "return=minimal" },
+          body: JSON.stringify(vendor)
+        });
+        if (res.status === 409) return showMsg("A vendor with this GSTIN already exists.");
+        if (!res.ok) {
+          const detail = await res.json().catch(() => ({}));
+          throw new Error(detail.message || "status " + res.status);
+        }
+        showMsg("Vendor added: " + vendor.name, true);
+        form.reset();
+        loadVendors();
+      } catch (err) {
+        showMsg("Could not add the vendor. " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    loadVendors();
+  </script>
+</body>
+</html>
